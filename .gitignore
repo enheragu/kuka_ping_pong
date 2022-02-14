@@ -1,0 +1,4 @@
+# Byte-compiled / optimized / DLL files taken from https://github.com/github/gitignore/blob/main/Python.gitignore template
+__pycache__/
+*.py[cod]
+*$py.class
