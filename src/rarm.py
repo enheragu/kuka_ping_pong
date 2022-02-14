@@ -10,3 +10,8 @@ __version__ = "0.0.1"
 __maintainer__ = "Enrique Heredia Aguado"
 __email__ = "enrique.heredia@goumh.umh.es"
 __status__ = "Prototype"
+
+class Player():
+
+    def __init__(self) -> None:
+        pass
