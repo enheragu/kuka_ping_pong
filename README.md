@@ -7,8 +7,14 @@ https://www.youtube.com/watch?v=JNsb-VydYu4
 ## Dependencies
 
 - Python3.8
-- pyARTE: https://github.com/4rtur1t0/pyARTE
+- pyARTE - https://github.com/4rtur1t0/pyARTE
+
+Note that pyARTE is added in this repository as a submodule. It is recommended that you clone this repository with `--recurse-submodules` option.
 
 ## Repo Structure
+
+- ./sceneconfig/ - Python package handling the interface between the project and CoppeliaSim
+- ./scenes/ -  CoppeliaSim scene with the Robots, table and ball placed on it.
+- ./src/ - Main code folder
 
 ## Feedback

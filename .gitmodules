@@ -1,0 +1,3 @@
+[submodule "pyARTE"]
+	path = pyARTE
+	url = https://github.com/4rtur1t0/pyARTE
