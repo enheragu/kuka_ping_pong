@@ -17,4 +17,11 @@ Note that pyARTE is added in this repository as a submodule. It is recommended t
 - ./scenes/ -  CoppeliaSim scene with the Robots, table and ball placed on it.
 - ./src/ - Main code folder
 
+## Usage
+
+Setup python path to have all blocks available making use of `config.sh` script:
+```sh
+    $ source config.sh
+```
+
 ## Feedback

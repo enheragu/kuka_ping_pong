@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # encoding: utf-8
 
 """ This file has the different classes handling the initializatio and comunication between pyARTE library and
@@ -16,14 +16,10 @@ import time
 import sim
 import sys
 
-from artelib.grippers import GripperRG2
-from artelib.kukalbr import RobotKUKALBR
-from artelib.ur5 import RobotUR5
-from artelib.scene import Sphere
+from robots.grippers import GripperRG2
+from robots.kukalbr import RobotKUKALBR
 import numpy as np
 
-# Standard delta time for Coppelia
-DELTA_TIME = 50.0/1000.0
 
 
 class PingCopInterface():
@@ -101,11 +97,19 @@ class PingCopInterface():
 
 
     
-    def set_ball_position(self, in_position) -> None:
+    def set_ball_position(self, position_in) -> None:
         """ 
             Set ball position in CoppeliaSim
 
-            :param in_position: input position in which to place the ball object in the simulatio
+            :param position_in: input position in which to place the ball object in the simulatio
         """
         # TBD check errorCode!!
-        errorCode = sim.simxSetObjectPosition(self.clientID, self.ball_handler, -1, in_position, sim.simx_opmode_oneshot_wait)
+        errorCode = sim.simxSetObjectPosition(self.clientID, self.ball_handler, -1, position_in, sim.simx_opmode_oneshot_wait)
+
+    def __del__(self) -> None:
+        """
+            Class destructor
+        """
+        print("[INFO] [PingCopInterface::__del__] - Stopping both arms and simulation")
+        self.player1_handler.stop_arm()
+        self.player1_handler.stop_simulation()
