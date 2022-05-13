@@ -22,6 +22,10 @@ GAME_UPDATE_RATE = 25.0/1000.0
 if __name__ == "__main__":
     game = PingPongGame()
 
-    scenario_uptade_th = Thread(target=game.scenario_update_loop(GAME_UPDATE_RATE))
+    print("[INFO] [main] - Start dinamics update thread")
+    scenario_uptade_th = Thread(target=game.scenario_update_loop, args=[GAME_UPDATE_RATE])
     scenario_uptade_th.start()
     
+    print("[INFO] [main] - Start game")
+    
+    game.play(GAME_UPDATE_RATE)

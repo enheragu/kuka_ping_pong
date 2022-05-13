@@ -22,9 +22,9 @@ import numpy as np
 
 
 
-class PingCopInterface():
+class CopInterface():
     """ 
-        This class handle the PingPong - CoppeliaSim interface. Makes initializatio and handle communication between them making use of the
+        This class handle the Python - CoppeliaSim interface. Makes initializatio and handle communication between them making use of the
         pyARTE library to handle robots
     """
 
@@ -36,9 +36,27 @@ class PingCopInterface():
 
         self.player1_handler, self.player2_handler, self.ball_handler = self.init_simulation()
 
-        print("[INFO] [PingCopInterface::__init__] - Initialization completed")
+        print("[INFO] [CopInterface::__init__] - Initialization completed")
 
-    
+    def init_sim(self):
+        # Python connect to the CoppeiaSim client
+        sim.simxFinish(-1)
+        clientID = sim.simxStart('127.0.0.1', 19997, True, True, 5000, 5)
+
+        if clientID != -1:
+            print("[INFO] [CopInterface::init_sim] - Connected to remote API server.")
+            # stop previous simiulation
+            sim.simxStopSimulation(clientID=clientID, operationMode=sim.simx_opmode_blocking)
+            time.sleep(3)
+            sim.simxStartSimulation(clientID=clientID, operationMode=sim.simx_opmode_blocking)
+            # enable the synchronous mode
+            sim.simxSynchronous(clientID=clientID, enable=True)
+        else:
+            print("[ERROR] [CopInterface::init_sim] - Connection not successful.")
+            sys.exit("[FATAL] [CopInterface::init_sim] - Connection failed,program ended!")
+        return clientID
+
+
     def init_simulation(self):
         """ 
             Initializes the coppelia simulator storing the handlers for both player robots based on pyARTE objects and
@@ -49,29 +67,15 @@ class PingCopInterface():
             :return: ball_handler object
         """
 
-        # Python connect to the CoppeliaSim client
-        sim.simxFinish(-1)
-        self.clientID = sim.simxStart('127.0.0.1', 19997, True, True, 5000, 5)
-
-        if self.clientID != -1:
-            print("[INFO] [PingCopInterface::init_simulation] - Connected to remote API server.")
-            # stop previous simiulation
-            sim.simxStopSimulation(clientID=self.clientID, operationMode=sim.simx_opmode_blocking)
-            time.sleep(3)
-            sim.simxStartSimulation(clientID=self.clientID, operationMode=sim.simx_opmode_blocking)
-            # enable the synchronous mode
-            sim.simxSynchronous(clientID=self.clientID, enable=True)
-        else:
-            print("[ERROR] [PingCopInterface::init_simulation] - Connection not successful.")
-            sys.exit("[FATAL] [PingCopInterface::init_simulation] - Connection failed,program ended!")
-
-        armjoints = []
+        self.clientID = self.init_sim()
 
         # Get the handles of the relevant objects
-        errorCode, robotbase = sim.simxGetObjectHandle(self.clientID, 'KUKA_PLAYER_1', sim.simx_opmode_oneshot_wait)
+        errorCode, robotbase1 = sim.simxGetObjectHandle(self.clientID, 'KUKA_PLAYER_1', sim.simx_opmode_oneshot_wait)
+        errorCode, robotbase2 = sim.simxGetObjectHandle(self.clientID, 'KUKA_PLAYER_2', sim.simx_opmode_oneshot_wait)
         errorCode, end_effector = sim.simxGetObjectHandle(self.clientID, 'end_effector', sim.simx_opmode_oneshot_wait)
 
-        for index in range(1,7):
+        armjoints = []
+        for index in range(1,8): # in LUA tag starts from 1 to 7, both included
             errorCode, q = sim.simxGetObjectHandle(self.clientID, 'LBR_iiwa_14_R820_joint'+str(index), sim.simx_opmode_oneshot_wait)
             # TBD check errorCode!!
             armjoints.append(q)
@@ -81,17 +85,19 @@ class PingCopInterface():
         errorCode, target = sim.simxGetObjectHandle(self.clientID, 'target', sim.simx_opmode_oneshot_wait)
         errorCode, camera = sim.simxGetObjectHandle(self.clientID, 'camera', sim.simx_opmode_oneshot_wait)
 
-        errorCode, ball_handler = sim.simxGetObjectHandle(self.clientID, 'ball', sim.simx_opmode_oneshot_wait)
-
-
         # Generate classes for both Kuka robots to handle connection
         gripper = GripperRG2(clientID=self.clientID, joints=[gripper_joint1])
         player1_handler = RobotKUKALBR(clientID=self.clientID, wheeljoints=[],
-                            armjoints=armjoints, base=robotbase,
+                            armjoints=armjoints, base=robotbase1,
                             end_effector=end_effector, gripper=gripper,
                             target=target, camera=camera)
                             
-        player2_handler = None
+        player2_handler = RobotKUKALBR(clientID=self.clientID, wheeljoints=[],
+                            armjoints=armjoints, base=robotbase2,
+                            end_effector=end_effector, gripper=gripper,
+                            target=target, camera=camera)
+
+        errorCode, ball_handler = sim.simxGetObjectHandle(self.clientID, 'ball', sim.simx_opmode_oneshot_wait)
 
         return player1_handler, player2_handler, ball_handler
 
@@ -106,10 +112,14 @@ class PingCopInterface():
         # TBD check errorCode!!
         errorCode = sim.simxSetObjectPosition(self.clientID, self.ball_handler, -1, position_in, sim.simx_opmode_oneshot_wait)
 
+
     def __del__(self) -> None:
         """
             Class destructor
         """
-        print("[INFO] [PingCopInterface::__del__] - Stopping both arms and simulation")
+        print("[INFO] [CopInterface::__del__] - Stopping both arms and simulation")
         self.player1_handler.stop_arm()
         self.player1_handler.stop_simulation()
+
+        self.player2_handler.stop_arm()
+        self.player2_handler.stop_simulation()

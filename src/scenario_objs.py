@@ -50,18 +50,18 @@ class Ball():
 
         # All three are stored as [X,Y,Z] component of position, speed and acceleratio
         self.current_position = [0, 0, 1]
-        self.current_speed = [-0.6, -0.01, 0]
-        self.current_acc = [0.0, 0.0, -4.9] # slowed gravity and speed
+        self.current_speed = [-0.7, -0.01, 0]
+        self.current_acc = [0.0, 0.0, -4.9] # slowed gravity and speed to have time to simulate
 
         # Size of the ball
         self.size = 0.04
 
         self.mutex = Lock()
     
-    def get_worldframed_bbox(self) -> list:
+    def get_worldframed_bbox(self, current_position) -> list:
         # Return ball bounding box coordinates in world coord reference
-        iter = range(len(self.current_position))
-        return [[self.current_position[i] - self.size/2, self.current_position[i] + self.size/2] for i in iter]
+        iter = range(len(current_position))
+        return [[current_position[i] - self.size/2, current_position[i] + self.size/2] for i in iter]
 
 
     def internal_step(self, time_in, current_position_in, current_speed_in, current_acc_in) -> tuple:
@@ -69,17 +69,18 @@ class Ball():
             Computes the next position and speed and return them to be stored 
             :param time_in: time lapse from previous update to get the position based on previous conditios
         """
-
+        current_position = current_position_in
         current_speed = current_speed_in
+
         # Well.. not so elegant way to collide. Changes speed in Z direction
-        if check_table_collision(self):
+        if check_table_collision(self, current_position):
             current_speed[2] = abs(current_speed[2])
         
         # Update speed based on acc and then position with current updated speed 
         iter = range(len(current_position_in))
         current_speed = [(current_speed_in[i] + time_in * current_acc_in[i]) for i in iter]
         current_position = [(current_position_in[i] + time_in * current_speed_in[i]) for i in iter]
-
+        # print("[INFO] [Ball::internal_step] - Current position in this iteration is: " + str(current_position))
         return current_position, current_speed
 
     def step(self, time_in) -> None:
@@ -100,14 +101,28 @@ class Ball():
         with self.mutex:
             return self.current_position
 
-    def estimate_next_position(self, time_in, step_in) -> None:
+    def estimate_next_position(self, time_in, step_in) -> list:
         """
             Estimates ball position given a time lapse from current position. Takes step size into account to 
-            habe a better estiamtion (more iterations can consume more time)
-        """
-        pass
+            habe a better estiamtion (more iterations can consume more time).
 
-    def estimate_until_x_position(self, x_plane_in, time_in, step_in) -> None:
+            :param time_in: Time from now in which the estimation is needed
+            :param step_in: time step to compute the final solution. Note that if step is too big some collisions might be ignored
+        """
+        iterations = time_in / step_in
+
+        # Starts with current situation and integrates the future one
+        with self.mutex:    
+            current_position = self.current_position
+            current_speed = self.current_speed
+            current_acc = self.current_acc
+
+        for step in range(iterations):
+            current_position, current_speed = self.internal_step(step_in, current_position, current_speed, current_acc)
+
+        return current_position
+
+    def estimate_until_x_position(self, x_plane_in, time_in, step_in) -> tuple:
         """
             Estimates position when the ball reaches a X plane. Returns that position along with the time lapse 
             estimated to reach that point
@@ -129,6 +144,7 @@ class Ball():
         while True:
             # Timeouted!
             if (time.time() - start_time) > time_in:
+                print("[ERROR] [Ball::estimate_until_x_position] - Timeout!")
                 break
 
             current_position, current_speed = self.internal_step(step_in, current_position, current_speed, current_acc)
@@ -139,13 +155,14 @@ class Ball():
                 (current_position[0] <= x_plane_in and x_plane_in < 0):
                 return current_position, total_time
 
+        print("[ERROR] [Ball::estimate_until_x_position] - No estimation found!")
         return None
 
 
 
-def check_table_collision(ball_in, table_in = Table()) -> bool:
+def check_table_collision(ball_in, current_ball_position, table_in = Table()) -> bool:
     
-    ball_bbox = ball_in.get_worldframed_bbox()
+    ball_bbox = ball_in.get_worldframed_bbox(current_ball_position)
     tab_bbox = table_in.get_worldframed_bbox()
     
     # print("[INFO] [check_table_collision] - Ball_pose: " + str(ball_in.current_position))
@@ -156,7 +173,7 @@ def check_table_collision(ball_in, table_in = Table()) -> bool:
     if (ball_bbox[2][0] <= tab_bbox[2][1] and \
         ball_bbox[0][0] >= tab_bbox[0][0] and ball_bbox[0][1] <= tab_bbox[0][1] and \
         ball_bbox[1][0] >= tab_bbox[1][0] and ball_bbox[1][1] <= tab_bbox[1][1]):
-        # print("[INFO] [check_table_collision] - Collision with table detected")
+        print("[INFO] [check_table_collision] - Collision with table detected")
         return True
 
     elif (ball_bbox[2][0] <= 0): # floor collision
